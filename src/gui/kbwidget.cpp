@@ -11,9 +11,10 @@
 #include "kbprofiledialog.h"
 #include "ui_kbwidget.h"
 #include "ui_kblightwidget.h"
+#include "kbmodeeventmgr.h"
 #include "mainwindow.h"
 
-KbWidget::KbWidget(QWidget *parent, Kb *_device) :
+KbWidget::KbWidget(QWidget *parent, Kb *_device, XWindowDetector* windowDetector) :
     QWidget(parent),
     device(_device), hasShownNewFW(false),
     ui(new Ui::KbWidget),
@@ -32,6 +33,11 @@ KbWidget::KbWidget(QWidget *parent, Kb *_device) :
 
     connect(static_cast<MainWindow*>(parent), &MainWindow::switchToProfileCLI, this, &KbWidget::switchToProfile);
     connect(static_cast<MainWindow*>(parent), &MainWindow::switchToModeCLI, this, &KbWidget::switchToMode);
+
+#ifdef USE_XCB_EWMH
+    if(windowDetector)
+        connect(windowDetector, &XWindowDetector::activeWindowChanged, this, &KbWidget::switchToModeByFocus);
+#endif
 
     // Remove the Lighting and Performance tabs from non-RGB keyboards
     if(!device->features.contains("rgb")){
@@ -324,6 +330,9 @@ void KbWidget::on_modesList_customContextMenuRequested(const QPoint &pos){
     if(!canDelete)
         // Can't delete modes if they're required by hardware
         del->setEnabled(false);
+#ifdef USE_XCB_EWMH
+    QAction* focusevts = new QAction("Manage Events", this);
+#endif
     QAction* moveup = new QAction("Move Up", this);
     if(index == 0)
         moveup->setEnabled(false);
@@ -333,7 +342,11 @@ void KbWidget::on_modesList_customContextMenuRequested(const QPoint &pos){
     menu.addAction(rename);
     menu.addAction(duplicate);
     menu.addAction(del);
+#ifdef USE_XCB_EWMH
     menu.addSeparator();
+    menu.addAction(focusevts);
+    menu.addSeparator();
+#endif
     menu.addAction(moveup);
     menu.addAction(movedown);
     QAction* result = menu.exec(QCursor::pos());
@@ -373,6 +386,15 @@ void KbWidget::on_modesList_customContextMenuRequested(const QPoint &pos){
         profileChanged();
         modeChanged(true);
     }
+#ifdef USE_XCB_EWMH
+     else if(result == focusevts) {
+        KbMode* mode = currentProfile->currentMode();
+        KbModeEventMgr* mgr = new KbModeEventMgr(this, mode->winInfo(), mode->name());
+        // We use this so that we don't have to free it
+        mgr->setAttribute(Qt::WA_DeleteOnClose);
+        mgr->show();
+    }
+#endif
 }
 
 void KbWidget::devUpdate(){
@@ -505,4 +527,62 @@ void KbWidget::switchToMode(QString mode){
         ui->modesList->setCurrentRow(i);
         return;
     }
+}
+
+// Returns _false_ if a match is found
+static inline bool checkForWinInfoMatch(KbWindowInfo* kbinfo, XWindowInfo* wininfo)
+{
+    Qt::CaseSensitivity sensitivity = Qt::CaseSensitive;
+    if(kbinfo->windowTitleCaseInsensitive)
+        sensitivity = Qt::CaseInsensitive;
+
+    // Check the window title first.
+    if(!kbinfo->windowTitle.isEmpty()){
+        if(kbinfo->windowTitleSubstr && wininfo->windowTitle.contains(kbinfo->windowTitle, sensitivity))
+            return false;
+
+        if(!wininfo->windowTitle.compare(kbinfo->windowTitle, sensitivity))
+            return false;
+    }
+    // Then the program executable/binary
+    if(!kbinfo->program.isEmpty() && kbinfo->program == wininfo->program)
+        return false;
+
+    if(!kbinfo->wm_class_name.isEmpty() && kbinfo->wm_class_name == wininfo->wm_class_name)
+        return false;
+
+    return kbinfo->wm_instance_name.isEmpty() || kbinfo->wm_instance_name != wininfo->wm_instance_name;
+}
+
+KbMode* prevmode = nullptr;
+void KbWidget::switchToModeByFocus(XWindowInfo win)
+{
+    if(win.isEmpty())
+        return;
+
+    KbProfile* currentProfile = device->currentProfile();
+    int len = currentProfile->modes().length();
+    for(int i = 0; i < len; i++)
+    {
+        KbMode* loopMode = currentProfile->modes().at(i);
+        if(checkForWinInfoMatch(loopMode->winInfo(), &win))
+            continue;
+
+        if(!prevmode)
+            prevmode = currentMode;
+
+        // Set the new mode
+        device->setCurrentMode(loopMode);
+
+        // Also update the list
+        ui->modesList->setCurrentRow(i);
+        return;
+    }
+    // If we got here, we found no match
+    if(prevmode && currentProfile->modes().contains(prevmode))
+    {
+        device->setCurrentMode(prevmode);
+        ui->modesList->setCurrentRow(currentProfile->modes().indexOf(prevmode));
+    }
+    prevmode = nullptr;
 }

@@ -14,6 +14,8 @@
 #include <sys/socket.h>
 #include <signal.h>
 #include <QProcess>
+#include "xcb/xwindowdetector.h"
+XWindowDetector* windowDetector = nullptr;
 
 #ifndef DISABLE_UPDATER
 #include "ckbupdater.h"
@@ -204,6 +206,12 @@ MainWindow::MainWindow(QWidget *parent) :
 
     connect(settingsWidget, &SettingsWidget::checkForUpdates, this, &MainWindow::checkForCkbUpdates);
 #endif
+#ifdef USE_XCB_EWMH
+        qRegisterMetaType<XWindowInfo>("XWindowInfo");
+        windowDetector = new XWindowDetector();
+        windowDetector->start();
+#endif
+
 }
 
 void MainWindow::handleTrayScrollEvt(bool up){
@@ -234,7 +242,7 @@ void MainWindow::addDevice(Kb* device){
             return;
     }
     // Add the keyboard
-    KbWidget* widget = new KbWidget(this, device);
+    KbWidget* widget = new KbWidget(this, device, windowDetector);
     kbWidgets.append(widget);
     // Add to tabber; switch to this device if the user is on the settings screen
     int count = ui->tabWidget->count();
@@ -466,6 +474,13 @@ void MainWindow::cleanup(){
     kbWidgets.clear();
     KbManager::stop();
     CkbSettings::cleanUp();
+#ifdef USE_XCB_EWMH
+    if(windowDetector)
+    {
+        windowDetector->terminateEventLoop();
+        windowDetector->wait();
+    }
+#endif
 }
 
 MainWindow::~MainWindow(){

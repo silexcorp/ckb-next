@@ -140,6 +140,8 @@ if (MACOS OR LINUX)
               kblightwidget.cpp
               kbmanager.cpp
               kbmode.cpp
+              kbmodeeventmgr.cpp
+              kbwindowinfo.cpp
               kbperf.cpp
               kbprofile.cpp
               kbprofiledialog.cpp
@@ -182,6 +184,7 @@ if (MACOS OR LINUX)
               kblightwidget.h
               kbmanager.h
               kbmode.h
+              kbmodeeventmgr.h
               kbperf.h
               kbprofiledialog.h
               kbprofile.h
@@ -198,6 +201,9 @@ if (MACOS OR LINUX)
               rebindwidget.h
               rlistwidget.h
               settingswidget.h
+              kbwindowinfo.h
+              xcb/xwindowdetector.h
+              xcb/xwindowinfo.h
               animadddialog.ui
               animsettingdialog.ui
               ckbupdaterwidget.ui
@@ -207,6 +213,7 @@ if (MACOS OR LINUX)
               kbanimwidget.ui
               kbbindwidget.ui
               kblightwidget.ui
+              kbmodeeventmgr.ui
               kbprofiledialog.ui
               kbwidget.ui
               kperfwidget.ui
@@ -229,6 +236,24 @@ elseif (LINUX)
                 PRIVATE
                     USE_LIBPULSE)
     endif ()
+
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(XCB xcb)
+    pkg_check_modules(XCB_EWMH xcb-ewmh)
+
+    if(${XCB_FOUND} AND ${XCB_EWMH_FOUND})
+        target_compile_definitions(
+        ckb-next
+            PRIVATE
+                USE_XCB_EWMH)
+
+        target_sources(
+            ckb-next
+                PRIVATE
+                  xcb/xwindowdetector.cpp)
+    else()
+        message(WARNING "XCB or XCB-EWMH were not found. Mode switch based on focus events will be disabled.")
+    endif()
 
     target_sources(
         ckb-next
@@ -401,20 +426,26 @@ if(MACOS)
               "${FOUNDATION_LIBRARY}"
               "${AUDIOTOOLBOX_LIBRARY}")
 elseif (LINUX)
+    target_link_libraries(
+        ckb-next
+            PRIVATE
+              "${X11_LIBRARIES}"
+              "${Appindicator_LIBRARIES}")
+
     if(${PULSEAUDIO_FOUND})
         target_link_libraries(
             ckb-next
                 PRIVATE
-                  "${X11_LIBRARIES}"
-                  "${Appindicator_LIBRARIES}"
                   "${PULSEAUDIO_LIBRARIES}")
-    else()
+    endif()
+    
+    if(${XCB_FOUND} AND ${XCB_EWMH_FOUND})
         target_link_libraries(
             ckb-next
                 PRIVATE
-                  "${X11_LIBRARIES}"
-                  "${Appindicator_LIBRARIES}")
+                  "${XCB_EWMH_LIBRARIES}")
     endif()
+
 endif()
 
 if (WITH_SHIPPED_QUAZIP)

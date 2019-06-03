@@ -4,6 +4,7 @@
 #include <QObject>
 #include "kblight.h"
 #include "kbbind.h"
+#include "kbwindowinfo.h"
 #include "kbperf.h"
 
 // ID structure for modes/profiles. Stores a GUID indentifying the item as well as a 32-bit number representing its last modification.
@@ -62,6 +63,7 @@ public:
     inline KbLight* light() { return _light; }
     inline KbBind*  bind() { return _bind; }
     inline KbPerf*  perf() { return _perf; }
+    inline KbWindowInfo*  winInfo() { return _winInfo; }
 
     // Save settings
     void save(CkbSettings& settings);
@@ -83,6 +85,7 @@ private:
     KbLight* _light;
     KbBind* _bind;
     KbPerf* _perf;
+    KbWindowInfo* _winInfo;
 
     bool _needsSave;
 

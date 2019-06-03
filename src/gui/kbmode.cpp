@@ -5,6 +5,7 @@ KbMode::KbMode(Kb* parent, const KeyMap& keyMap, const QString &guid, const QStr
     QObject(parent),
     _name("Unnamed"), _id(guid, modified),
     _light(new KbLight(this, keyMap)), _bind(new KbBind(this, parent, keyMap)), _perf(new KbPerf(this)),
+    _winInfo(new KbWindowInfo(this)),
     _needsSave(true)
 {
     connect(_light, SIGNAL(updated()), this, SLOT(doUpdate()));
@@ -22,6 +23,7 @@ KbMode::KbMode(Kb* parent, const KeyMap& keyMap, const KbMode& other) :
     QObject(parent),
     _name(other._name), _id(other._id),
     _light(new KbLight(this, keyMap, *other._light)), _bind(new KbBind(this, parent, keyMap, *other._bind)), _perf(new KbPerf(this, *other._perf)),
+    _winInfo(new KbWindowInfo(this, *other._winInfo)),
     _needsSave(true)
 {
     connect(_light, SIGNAL(updated()), this, SLOT(doUpdate()));
@@ -32,6 +34,7 @@ KbMode::KbMode(Kb* parent, const KeyMap& keyMap, CkbSettings& settings) :
     _name(settings.value("Name").toString().trimmed()),
     _id(settings.value("GUID").toString().trimmed(), settings.value("Modified").toString().trimmed()),
     _light(new KbLight(this, keyMap)), _bind(new KbBind(this, parent, keyMap)), _perf(new KbPerf(this)),
+    _winInfo(new KbWindowInfo(this)),
     _needsSave(false)
 {
     if(settings.contains("HwModified"))
@@ -47,6 +50,7 @@ KbMode::KbMode(Kb* parent, const KeyMap& keyMap, CkbSettings& settings) :
     _light->load(settings);
     _bind->load(settings);
     _perf->load(settings);
+    _winInfo->load(settings);
 }
 
 KbMode::KbMode(Kb* parent, const KeyMap& keyMap, QSettings* settings) :
@@ -54,6 +58,7 @@ KbMode::KbMode(Kb* parent, const KeyMap& keyMap, QSettings* settings) :
     _name(settings->value("Name").toString().trimmed()),
     _id(settings->value("GUID").toString().trimmed(), settings->value("Modified").toString().trimmed()),
     _light(new KbLight(this, keyMap)), _bind(new KbBind(this, parent, keyMap)), _perf(new KbPerf(this)),
+    _winInfo(new KbWindowInfo(this)),
     _needsSave(false)
 {
     if(settings->contains("HwModified"))
@@ -69,6 +74,7 @@ KbMode::KbMode(Kb* parent, const KeyMap& keyMap, QSettings* settings) :
     _light->lightImport(settings);
     _bind->bindImport(settings);
     _perf->perfImport(settings);
+    _winInfo->winInfoImport(settings);
 }
 
 void KbMode::newId(){
@@ -95,6 +101,7 @@ void KbMode::save(CkbSettings& settings){
     _light->save(settings);
     _bind->save(settings);
     _perf->save(settings);
+    _winInfo->save(settings);
 }
 
 void KbMode::modeExport(QSettings* settings){
@@ -105,6 +112,7 @@ void KbMode::modeExport(QSettings* settings){
     _light->lightExport(settings);
     _bind->bindExport(settings);
     _perf->perfExport(settings);
+    _winInfo->winInfoExport(settings);
 }
 
 void KbMode::modeImport(QSettings* settings){
@@ -112,7 +120,7 @@ void KbMode::modeImport(QSettings* settings){
 }
 
 bool KbMode::needsSave() const {
-    return _needsSave || _light->needsSave() || _bind->needsSave() || _perf->needsSave();
+    return _needsSave || _light->needsSave() || _bind->needsSave() || _perf->needsSave() || _winInfo->needsSave();
 }
 
 void KbMode::doUpdate(){
