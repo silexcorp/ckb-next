@@ -4,7 +4,9 @@
 #include <QObject>
 #include <QThread>
 #include "xwindowinfo.h"
+#ifdef USE_XCB_EWMH
 #include <xcb/xcb.h>
+#endif
 
 class XWindowDetector : public QThread
 {
