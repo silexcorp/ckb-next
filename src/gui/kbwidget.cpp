@@ -21,6 +21,7 @@ KbWidget::KbWidget(QWidget *parent, Kb *_device, XWindowDetector* windowDetector
     currentMode(0)
 {
     ui->setupUi(this);
+    ui->modesList->setup();
     connect(ui->modesList, SIGNAL(orderChanged()), this, SLOT(modesList_reordered()));
 
     connect(device, SIGNAL(infoUpdated()), this, SLOT(devUpdate()));
@@ -151,7 +152,6 @@ void KbWidget::showLastTab(){
     ui->tabWidget->setCurrentIndex(ui->tabWidget->count() - 1);
 }
 
-
 void KbWidget::updateProfileList(){
     // Clear profile list and rebuild
     KbProfile* hwProfile = device->hwProfile(), *currentProfile = device->currentProfile();
@@ -174,16 +174,16 @@ void KbWidget::profileChanged(){
     // Rebuild mode list
     ui->modesList->clear();
     int i = 0;
-    QListWidgetItem* current = 0;
+    QTableWidgetItem* current = 0;
     foreach(KbMode* mode, device->currentProfile()->modes()){
-        QListWidgetItem* item = new QListWidgetItem(modeIcon(i), mode->name(), ui->modesList);
+        QTableWidgetItem* item = new QTableWidgetItem(modeIcon(i), mode->name());
         item->setData(GUID, mode->id().guid);
         item->setFlags(item->flags() | Qt::ItemIsEditable);
         if(mode == currentMode){
             item->setSelected(true);
             current = item;
         }
-        ui->modesList->addItem(item);
+        ui->modesList->addItem(item, eventIcon(mode));
         i++;
     }
     if(current)
@@ -215,16 +215,22 @@ QIcon KbWidget::modeIcon(int i){
         return QIcon(QString(currentProfile == hwProfile ? ":/img/icon_mode%1_hardware.png" : ":/img/icon_mode%1.png").arg(i + 1));
 }
 
+QIcon KbWidget::eventIcon(KbMode* currentMode){
+    if(currentMode->winInfo()->enabled)
+        return QIcon(":/img/lightning.svg");
+    return QIcon(":/img/lightning_disabled.svg");
+}
+
 void KbWidget::addNewModeItem(){
     // Add an item for creating a new mode. Make it editable but not dragable.
-    QListWidgetItem* item = new QListWidgetItem("New mode...", ui->modesList);
+    QTableWidgetItem* item = new QTableWidgetItem("New mode...");
     item->setFlags((item->flags() | Qt::ItemIsEditable) & ~Qt::ItemIsDragEnabled & ~Qt::ItemIsDropEnabled);
     item->setData(NEW_FLAG, 1);
     QFont font = item->font();
     font.setItalic(true);
     item->setFont(font);
     item->setIcon(QIcon(":/img/icon_plus.png"));
-    ui->modesList->addItem(item);
+    ui->modesList->addItem(item, QIcon());
 }
 
 void KbWidget::modeChanged(bool spontaneous){
@@ -247,7 +253,7 @@ void KbWidget::modeChanged(bool spontaneous){
     modeUpdate();
 }
 
-void KbWidget::on_modesList_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous){
+void KbWidget::on_modesList_currentItemChanged(QTableWidgetItem *current, QTableWidgetItem *previous){
     if(!current)
         return;
     KbMode* mode = device->currentProfile()->find(current->data(GUID).toUuid());
@@ -262,7 +268,7 @@ void KbWidget::modesList_reordered(){
     QList<KbMode*> newModes;
     int count = ui->modesList->count();
     for(int i = 0; i < count; i++){
-        QListWidgetItem* item = ui->modesList->item(i);
+        QTableWidgetItem* item = ui->modesList->item(i);
         KbMode* mode = currentProfile->find(item->data(GUID).toUuid());
         if(mode && !newModes.contains(mode))
             newModes.append(mode);
@@ -278,7 +284,7 @@ void KbWidget::modesList_reordered(){
     currentProfile->modes(newModes);
 }
 
-void KbWidget::on_modesList_itemChanged(QListWidgetItem *item){
+void KbWidget::on_modesList_itemChanged(QTableWidgetItem *item){
     if(!item || !currentMode || item->data(GUID).toUuid() != currentMode->id().guid)
         return;
     currentMode->name(item->text());
@@ -286,7 +292,24 @@ void KbWidget::on_modesList_itemChanged(QListWidgetItem *item){
     item->setText(currentMode->name());
 }
 
-void KbWidget::on_modesList_itemClicked(QListWidgetItem* item){
+void KbWidget::toggleEvent(KbMode* mode, QTableWidgetItem* item)
+{
+    mode->winInfo()->enabled = !mode->winInfo()->enabled;
+    item->setIcon(eventIcon(currentMode));
+}
+
+void KbWidget::on_modesList_itemClicked(QTableWidgetItem* item){
+    if(item->column())
+    {
+        // set selected mode
+        ui->modesList->setCurrentItem(ui->modesList->item(item->row()));
+        // If empty, open the manager as well
+        toggleEvent(currentMode, item);
+        if(currentMode->winInfo()->isEmpty())
+            openEventMgr(currentMode);
+        return;
+    }
+    // Check if new mode was clicked
     QUuid guid = item->data(GUID).toUuid();
     if(guid.isNull() && item->data(NEW_FLAG).toInt() == 1){
         // "New mode" item. Clear text and start editing
@@ -308,6 +331,14 @@ void KbWidget::on_modesList_itemClicked(QListWidgetItem* item){
     }
 }
 
+void KbWidget::openEventMgr(KbMode* mode)
+{
+    KbModeEventMgr* mgr = new KbModeEventMgr(this, mode->winInfo(), mode->name());
+    // We set this attribute so that we don't have to free it
+    mgr->setAttribute(Qt::WA_DeleteOnClose);
+    mgr->show();
+}
+
 ///
 /// \brief KbWidget::on_modesList_customContextMenuRequested
 /// \param pos
@@ -316,7 +347,7 @@ void KbWidget::on_modesList_itemClicked(QListWidgetItem* item){
 ///
 /// When clicking on a command it is located and executed.
 void KbWidget::on_modesList_customContextMenuRequested(const QPoint &pos){
-    QListWidgetItem* item = ui->modesList->itemAt(pos);
+    QTableWidgetItem* item = ui->modesList->itemAt(pos);
     if(!item || !currentMode || item->data(GUID).toUuid() != currentMode->id().guid)
         return;
     KbProfile* currentProfile = device->currentProfile();
@@ -388,11 +419,7 @@ void KbWidget::on_modesList_customContextMenuRequested(const QPoint &pos){
     }
 #ifdef USE_XCB_EWMH
      else if(result == focusevts) {
-        KbMode* mode = currentProfile->currentMode();
-        KbModeEventMgr* mgr = new KbModeEventMgr(this, mode->winInfo(), mode->name());
-        // We use this so that we don't have to free it
-        mgr->setAttribute(Qt::WA_DeleteOnClose);
-        mgr->show();
+        openEventMgr(currentProfile->currentMode());
     }
 #endif
 }
@@ -532,6 +559,9 @@ void KbWidget::switchToMode(QString mode){
 // Returns _false_ if a match is found
 static inline bool checkForWinInfoMatch(KbWindowInfo* kbinfo, XWindowInfo* wininfo)
 {
+    if(kbinfo->isEmpty())
+        return true;
+
     Qt::CaseSensitivity sensitivity = Qt::CaseSensitive;
     if(kbinfo->windowTitleCaseInsensitive)
         sensitivity = Qt::CaseInsensitive;
@@ -585,4 +615,20 @@ void KbWidget::switchToModeByFocus(XWindowInfo win)
         ui->modesList->setCurrentRow(currentProfile->modes().indexOf(prevmode));
     }
     prevmode = nullptr;
+}
+
+void KbWidget::on_modesList_cellDoubleClicked(int row, int column)
+{
+    QTableWidgetItem* item = ui->modesList->item(row);
+    if(!item || !currentMode || item->data(GUID).toUuid() != currentMode->id().guid)
+        return;
+
+    // Check which column was double clicked
+    if(column)
+    {
+        openEventMgr(currentMode);
+        return;
+    }
+
+    ui->modesList->editItem(item);
 }

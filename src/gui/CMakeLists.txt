@@ -154,6 +154,7 @@ if (MACOS OR LINUX)
               main.cpp
               mainwindow.cpp
               modeselectdialog.cpp
+              modelistwidget.cpp
               mperfwidget.cpp
               rebindwidget.cpp
               rlistwidget.cpp
@@ -197,6 +198,7 @@ if (MACOS OR LINUX)
               mainwindow.h
               media.h
               modeselectdialog.h
+              modelistwidget.h
               mperfwidget.h
               rebindwidget.h
               rlistwidget.h
@@ -289,6 +291,7 @@ endif ()
 if (NOT EXISTS "${CMAKE_CURRENT_BINARY_DIR}/image.qrc")
     message(STATUS "Generating image.qrc")
     file(GLOB qt_images RELATIVE "${CMAKE_CURRENT_LIST_DIR}/resources" "${CMAKE_CURRENT_LIST_DIR}/resources/*.png")
+    list(APPEND qt_images "lightning.svg" "lightning_disabled.svg")
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/image.qrc" "<RCC>\n<qresource prefix=\"/img\">\n")
     foreach (qt_image IN LISTS qt_images)
         message(STATUS "Importing ${qt_image}")

@@ -11,6 +11,7 @@ class KbWindowInfo : public QObject
 public:
     KbWindowInfo(KbMode* parent);
     KbWindowInfo(KbMode* parent, const KbWindowInfo& other);
+    bool enabled;
 
     // Match data
     QString windowTitle;
@@ -24,12 +25,11 @@ public:
     QString wm_instance_name;
     QString wm_class_name;
     inline bool needsSave() const { return _needsSave; }
-
+    inline bool isEmpty() { return windowTitle.isEmpty() && program.isEmpty() && wm_instance_name.isEmpty() && wm_class_name.isEmpty(); }
     void load(CkbSettings& settings);
     void save(CkbSettings& settings);
     void winInfoImport(QSettings* settings);
     void winInfoExport(QSettings* settings);
-
     void setNeedsSave();
 
 private:

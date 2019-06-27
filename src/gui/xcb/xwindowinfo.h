@@ -12,7 +12,7 @@ public:
     QString wm_instance_name;
     QString wm_class_name;
 
-    bool isEmpty() { return windowTitle.isEmpty() && program.isEmpty() && wm_instance_name.isEmpty() && wm_class_name.isEmpty(); }
+    inline bool isEmpty() { return windowTitle.isEmpty() && program.isEmpty() && wm_instance_name.isEmpty() && wm_class_name.isEmpty(); }
 };
 
 #endif // XWINDOWINFO_H

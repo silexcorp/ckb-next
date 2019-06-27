@@ -26,6 +26,8 @@ private slots:
 
     void on_browseButton_clicked();
 
+    void on_enableBox_stateChanged(int arg1);
+
 private:
     KbWindowInfo* info_ptr;
     Ui::KbModeEventMgr *ui;

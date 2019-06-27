@@ -14,6 +14,7 @@ KbModeEventMgr::KbModeEventMgr(QWidget* parent, KbWindowInfo* info, QString mode
     ui->programLineEdit->setText(info->program);
     ui->instanceNameLineEdit->setText(info->wm_instance_name);
     ui->classNameLineEdit->setText(info->wm_class_name);
+    ui->enableBox->setChecked(info->enabled);
     if(info->windowTitleSubstr)
         ui->isContainsCombo->setCurrentIndex(1);
 }
@@ -56,4 +57,9 @@ void KbModeEventMgr::on_browseButton_clicked()
     if(file.isNull())
         return;
     ui->programLineEdit->setText(file);
+}
+
+void KbModeEventMgr::on_enableBox_stateChanged(int arg1)
+{
+    qDebug() << arg1;
 }
