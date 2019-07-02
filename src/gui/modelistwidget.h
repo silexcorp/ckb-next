@@ -17,6 +17,7 @@ public:
     QTableWidgetItem* item(int idx);
     void clear();
     void setup();
+    QTableWidgetItem* getIconItem(QTableWidgetItem* item);
 
 signals:
     void orderChanged();

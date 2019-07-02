@@ -2,13 +2,15 @@
 #include "ui_kbmodeeventmgr.h"
 #include <QFileDialog>
 #include <QDebug>
+#include "kbwidget.h"
+#include <QCloseEvent>
 
-KbModeEventMgr::KbModeEventMgr(QWidget* parent, KbWindowInfo* info, QString modeName) :
-    QDialog(parent), info_ptr(info),
+KbModeEventMgr::KbModeEventMgr(QWidget* parent, KbMode* m, QTableWidgetItem* itm) :
+    QDialog(parent), info(m->winInfo()), item(itm), mode(m),
     ui(new Ui::KbModeEventMgr)
 {
     ui->setupUi(this);
-    ui->modeLabel->setText(QString(tr("Switch to mode \"%1\" when:")).arg(modeName));
+    ui->modeLabel->setText(QString(tr("Switch to mode \"%1\" when:")).arg(mode->name()));
     ui->windowTitleLineEdit->setFocus();
     ui->windowTitleLineEdit->setText(info->windowTitle);
     ui->programLineEdit->setText(info->program);
@@ -29,14 +31,30 @@ void KbModeEventMgr::on_cancelBtn_clicked()
     this->close();
 }
 
+void KbModeEventMgr::closeEvent(QCloseEvent* evt)
+{
+    // Disable the mode event if empty
+    if(info->isEmpty())
+        info->enabled = false;
+
+    // Update the UI icon
+    item->setIcon(KbWidget::eventIcon(mode));
+    info->setNeedsSave();
+
+    // Continue handling the event
+    evt->accept();
+}
+
 void KbModeEventMgr::on_okBtn_clicked()
 {
     // Write everything
-    info_ptr->windowTitle = ui->windowTitleLineEdit->text();
-    info_ptr->program = ui->programLineEdit->text();
-    info_ptr->wm_instance_name = ui->instanceNameLineEdit->text();
-    info_ptr->wm_class_name = ui->classNameLineEdit->text();
-    info_ptr->windowTitleSubstr = ui->isContainsCombo->currentIndex();
+    info->windowTitle = ui->windowTitleLineEdit->text();
+    info->program = ui->programLineEdit->text();
+    info->wm_instance_name = ui->instanceNameLineEdit->text();
+    info->wm_class_name = ui->classNameLineEdit->text();
+    info->windowTitleSubstr = ui->isContainsCombo->currentIndex();
+    info->enabled = ui->enableBox->isChecked();
+
     this->close();
 }
 
@@ -57,9 +75,4 @@ void KbModeEventMgr::on_browseButton_clicked()
     if(file.isNull())
         return;
     ui->programLineEdit->setText(file);
-}
-
-void KbModeEventMgr::on_enableBox_stateChanged(int arg1)
-{
-    qDebug() << arg1;
 }

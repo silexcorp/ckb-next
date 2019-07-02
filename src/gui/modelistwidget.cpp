@@ -2,6 +2,7 @@
 #include "modelistwidget.h"
 #include <QHeaderView>
 #include <QDebug>
+#include <QTableWidgetItem>
 
 ModeListWidget::ModeListWidget(QWidget *parent) :
     QTableWidget(parent)
@@ -25,6 +26,7 @@ void ModeListWidget::setup()
 }
 
 void ModeListWidget::timerTick(){
+    qDebug() << "Tick";
     bool reordered = false;
     QTableWidgetItem* reselect = 0;
     QList<QVariant> newItems;
@@ -90,10 +92,10 @@ void ModeListWidget::addItem(QTableWidgetItem* itm, QIcon eventicn)
     setItem(rowCount() - 1, 1, iconitm);
 }
 
-/*void ModelListWidget::setItemIcon(int idx)
+QTableWidgetItem* ModeListWidget::getIconItem(QTableWidgetItem* item)
 {
-
-}*/
+    return QTableWidget::item(item->row(), 1);
+}
 
 void ModeListWidget::setCurrentRow(int idx)
 {
